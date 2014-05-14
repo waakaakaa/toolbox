@@ -1,0 +1,51 @@
+<!DOCTYPE>
+<html>
+  <head>
+	<title>piccode</title>
+  </head>
+<body>
+	<canvas id="myCanvas"></canvas>
+	<script type="text/javascript">
+		str=escape("我的代码，各种unicode，各种u导致了周期性的变化，可以用，不过怎么显示多行字符串啊真麻烦！");
+		str2="";
+		for(i=0;i<str.length;i++){
+			temp = str.charCodeAt(i).toString(16);
+			if(temp.length<2){
+				temp="0"+temp;
+			}
+			str2+=temp;
+			if(i<str.length-1){
+				str2=str2+" "
+			}
+		}
+		s=new Array;
+		s=str2.split(" ");
+		
+		var canvas=document.getElementById('myCanvas');
+		var ctx=canvas.getContext('2d');
+		ctx.fillStyle='#000000';
+		ctx.fillRect(0,0,100,100);
+		z=0;
+		for(i=0;i<100;i++){
+			if(z>=s.length)
+				break;
+			for(j=0;j<100;j++){
+				style="";
+				if(z<s.length-2){
+					style='#'+s[z]+s[z+1]+s[z+2];
+				}else if(z==s.length-2){
+					style='#'+s[z]+s[z+1]+"00";
+				}else if(z==s.length-1){
+					style='#'+s[z]+"0000";
+				}else{
+					style='#000000';
+				}
+				ctx.fillStyle=style;
+				ctx.fillRect(j,i,1,1);
+				z=z+3;
+				alert(style);
+			}
+		}
+	</script>
+</body>
+</html>
