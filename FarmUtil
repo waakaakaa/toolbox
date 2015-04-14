@@ -1,0 +1,209 @@
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+public class FarmUtil {
+	private static final String entranceUrl = "http://fwd.3g.qq.com:8080/forward.jsp?bid=137";
+	private static final String USER = "341852201";
+	private static final String PASSWD = "************";
+	private static final String PARAMETERS = "sid=$sid$"//
+			+ "&qq=" + USER//
+			+ "&pwd=" + PASSWD//
+			+ "&sidtype=1"//
+			+ "&hiddenPwd=true"//
+			+ "&aid=nLoginqz"//
+			+ "&go_url=http://app.z.qq.com/qzone_app/index.jsp?appid=353&amp;g_bid=137"//
+			+ "&login_url=http://pt.3g.qq.com/s?aid=nLoginqz&amp;KqqWap_Act=3&amp;sid=$sid$";
+	private static final List<String> list = new ArrayList<String>();
+	private static final String LOG_FILE = "log";
+
+	private static String get(String urlStr) {
+		StringBuilder sb = new StringBuilder();
+		try {
+			URL url = new URL(urlStr);
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			connection.setInstanceFollowRedirects(true);
+			connection.connect();
+			BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+			String line = null;
+			while ((line = br.readLine()) != null) {
+				sb.append(line + "\n");
+			}
+			br.close();
+			connection.disconnect();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return sb.toString();
+	}
+
+	private static String post(String urlStr, String params) {
+		StringBuilder sb = new StringBuilder();
+		try {
+			URL url = new URL(urlStr);
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			connection.setDoOutput(true);
+			connection.setDoInput(true);
+			connection.setRequestMethod("POST");
+			connection.setUseCaches(false);
+			connection.setInstanceFollowRedirects(true);
+			connection.connect();
+			DataOutputStream out = new DataOutputStream(connection.getOutputStream());
+			out.writeBytes(params);
+			out.flush();
+			out.close();
+			BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+			String line = null;
+			while ((line = br.readLine()) != null) {
+				sb.append(line + "\n");
+			}
+			br.close();
+			connection.disconnect();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return sb.toString();
+	}
+
+	private static String between(String s, String s1, String s2) {
+		return s.split(s1)[1].split(s2)[0];
+	}
+
+	private static void log(String s) {
+		try {
+			RandomAccessFile rf = new RandomAccessFile(LOG_FILE, "rw");
+			long count = rf.length();
+			rf.seek(count);
+			rf.writeBytes("\r\n" + new Date() + " --> " + s);
+			rf.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		System.out.println(s);
+	}
+
+	public static String login() {
+		String postUrl = null;
+		String html = get(entranceUrl);
+		for (String s : html.split("\n")) {
+			if (s.contains("登录<go href=\"")) {
+				postUrl = between(s, "登录<go href=\"", "\"");
+			}
+		}
+		return post(postUrl, PARAMETERS.replace("$sid$", between(postUrl, "sid=", "&amp;")));
+	}
+
+	public static String farmIndex(String html) {
+		for (String s : html.split("\n")) {
+			if (s.contains("我的农场")) {
+				String url = s.split("\"")[1];
+				if (!url.contains("http")) {
+					url = "http://mcapp.z.qq.com/nc/cgi-bin" + url.substring(1);
+				}
+				return get(url);
+			}
+		}
+		return null;
+	}
+
+	public static String poolIndex(String htmlhtml) {
+		String html = farmIndex(htmlhtml);
+		for (String s : html.split("\n")) {
+			if (s.contains("我的池塘")) {
+				return get(s.split("\"")[1]);
+			}
+		}
+		return null;
+	}
+
+	public static String pastureIndex(String html) {
+		for (String s : html.split("\n")) {
+			if (s.contains("牧场")) {
+				String url = s.split("\"")[1];
+				return get(url);
+			}
+		}
+		return null;
+	}
+
+	public static void addTasks(String html) {
+		for (String s : html.split("\n")) {
+			if ((s.contains("铲除") || s.contains("收获") || s.contains("除草") || s.contains("浇水") || s.contains("杀虫") || s.contains("播种")) && s.contains("</a>&nbsp;") //
+					|| s.contains("生产</a>") || s.contains("收获</a>") || s.contains("清扫</a>")) {
+				list.add(between(s, "href=\"", "\"").replace("amp;", ""));
+			}
+		}
+	}
+
+	public static void clearTasks() {
+		for (String s : list) {
+			if (!s.contains("plant")) {
+				get(s);
+				log(s);
+			} else {
+				String html = get(s);
+				for (String s2 : html.split("\n")) {
+					if (s2.contains("种植") && s2.split("\"").length > 1) {
+						String u = s2.split("\"")[1].replace("amp;", "");
+						get(u);
+						log(u);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	public static void fishing(String html) {
+		for (String s : html.split("\n")) {
+			if (s.contains("捞鱼") && s.contains("http")) {
+				String u = s.split("\"")[1].replace("amp;", "");
+				get(u);
+				log(u);
+			}
+		}
+	}
+
+	public static void addFish(String html) {
+		for (String s : html.split("\n")) {
+			if (s.contains("养殖") && s.contains("http")) {
+				String u = s.split("\"")[1].replace("amp;", "");
+				String html2 = get(u);
+				for (String s2 : html2.split("\n")) {
+					if (s2.contains("养殖")) {
+						String u2 = s2.split("\"")[1].replace("amp;", "");
+						get("http://mcapp.z.qq.com/nc/cgi-bin" + u2.substring(1));
+						log(u2);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	public static void main(String[] args) {
+		String html = null;
+		html = login();
+		addTasks(html);
+		clearTasks();
+		html = poolIndex(html);
+		fishing(html);
+		html = poolIndex(html);
+		addFish(html);
+		html = pastureIndex(html);
+		addTasks(html);
+		clearTasks();
+	}
+}
