@@ -1,0 +1,1 @@
+mklink /d "c:\Program Files\HanseulSoft" "C:\Program Files (x86)\HanseulSoft"
